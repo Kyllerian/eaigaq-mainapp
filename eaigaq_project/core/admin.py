@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 from .models import (
     User,
+    Department,
     Case,
     MaterialEvidence,
     MaterialEvidenceEvent,
@@ -19,20 +20,27 @@ class CustomUserAdmin(UserAdmin):
     # Поля для отображения в списке пользователей
     list_display = (
         'username', 'email', 'first_name', 'last_name',
-        'is_staff', 'rank', 'phone_number'
+        'is_staff', 'is_active', 'rank', 'phone_number', 'department', 'region', 'role'
     )
 
     # Поля для фильтрации
-    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
+    list_filter = (
+        'is_staff', 'is_superuser', 'is_active', 'groups', 'department', 'region', 'role'
+    )
 
     # Поля для редактирования пользователя
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Персональная информация'), {
-            'fields': ('first_name', 'last_name', 'email', 'phone_number', 'rank')
+            'fields': (
+                'first_name', 'last_name', 'email', 'phone_number',
+                'rank', 'department', 'region', 'role'
+            )
         }),
         (_('Права доступа'), {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
+            'fields': (
+                'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'
+            )
         }),
         (_('Важные даты'), {'fields': ('last_login', 'date_joined')}),
     )
@@ -43,7 +51,8 @@ class CustomUserAdmin(UserAdmin):
             'classes': ('wide',),
             'fields': (
                 'username', 'password1', 'password2',
-                'first_name', 'last_name', 'email', 'phone_number', 'rank',
+                'first_name', 'last_name', 'email', 'phone_number',
+                'rank', 'department', 'region', 'role',
                 'is_active', 'is_staff', 'is_superuser'
             ),
         }),
@@ -53,7 +62,13 @@ class CustomUserAdmin(UserAdmin):
     ordering = ('username',)
 
 
-# Регистрация остальных моделей без изменений
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ('name', 'region')
+    search_fields = ('name',)
+    list_filter = ('region',)
+
+
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
     list_display = ('name', 'investigator', 'active', 'created', 'updated')
@@ -91,6 +106,8 @@ class CameraAdmin(admin.ModelAdmin):
 
 @admin.register(AuditEntry)
 class AuditEntryAdmin(admin.ModelAdmin):
-    list_display = ('object_id', 'table_name', 'class_name', 'action', 'user', 'created')
+    list_display = (
+        'object_id', 'table_name', 'class_name', 'action', 'user', 'created'
+    )
     search_fields = ('table_name', 'class_name', 'action', 'user__username')
     list_filter = ('action', 'created')
