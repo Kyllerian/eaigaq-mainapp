@@ -1,3 +1,4 @@
+# eaigaq_project/eaigaq_project/urls.py
 """
 URL configuration for eaigaq_project project.
 

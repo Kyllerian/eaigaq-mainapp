@@ -1,12 +1,4 @@
-"""
-ASGI config for eaigaq_project project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
-"""
-
+# eaigaq_project/eaigaq_project/asgi.py
 import os
 
 from django.core.asgi import get_asgi_application

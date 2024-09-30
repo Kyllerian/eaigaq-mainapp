@@ -1,3 +1,4 @@
+# eaigaq_project/eaigaq_project/wsgi.py
 """
 WSGI config for eaigaq_project project.
 
