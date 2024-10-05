@@ -4,39 +4,43 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Определяем базовую директорию
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Загружаем переменные окружения из файла .env
-dotenv_path = os.path.join(BASE_DIR, '.env')
+# Определяем, находимся ли мы в Docker-контейнере
+DOCKER = os.environ.get('DOCKER') == '1'
+
+if DOCKER:
+    # В Docker-контейнере путь к файлу окружения
+    dotenv_path = '/app/.env'
+else:
+    # В локальной среде путь к файлу env/.env.backend
+    dotenv_path = os.path.join(BASE_DIR.parent, 'env', '.env.backend')
+
+# Загрузка переменных окружения из файла .env
 load_dotenv(dotenv_path=dotenv_path)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+# Получаем SECRET_KEY из переменных окружения
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # Проверяем, что SECRET_KEY загружен
 if not SECRET_KEY:
-    raise ValueError("Необходимо установить SECRET_KEY в файле .env")
+    raise ValueError("Необходимо установить SECRET_KEY в переменных окружения")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# Устанавливаем DEBUG на основе переменной окружения
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+# Получаем ALLOWED_HOSTS из переменных окружения
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
+# Настройки CORS
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
 
-CORS_ALLOWED_ORIGINS = [
-    origin for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if origin
-]
-CSRF_TRUSTED_ORIGINS = [
-    origin for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origin
-]
-
-# Убедитесь, что CORS_ALLOW_ALL_ORIGINS установлен в False
 CORS_ALLOW_ALL_ORIGINS = False
 
-# Application definition
-
+# Определение приложений
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,11 +48,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',
-    'corsheaders',
-    'rest_framework',
+    'core',              # Ваше основное приложение
+    'corsheaders',       # Для обработки CORS
+    'rest_framework',    # Django REST Framework
 ]
 
+# Настройки REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -58,19 +63,22 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Middleware
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',           # Должен быть первым
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',  # Убедитесь, что этот middleware не дублируется
+    'django.middleware.common.CommonMiddleware',       # Убедитесь, что этот middleware не дублируется
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# URL конфигурация
 ROOT_URLCONF = 'eaigaq_project.urls'
 
+# Настройки шаблонов
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -87,31 +95,39 @@ TEMPLATES = [
     },
 ]
 
+# WSGI приложение
 WSGI_APPLICATION = 'eaigaq_project.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'eaigaq_db'),
-        'USER': os.getenv('DB_USER', 'your_db_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'your_db_password'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+# Настройки базы данных
+if DOCKER:
+    # Настройки для Docker
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'eaigaq_db'),
+            'USER': os.environ.get('DB_USER'),
+            'PASSWORD': os.environ.get('DB_PASSWORD'),
+            'HOST': os.environ.get('DB_HOST', 'db'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    # Настройки для локальной разработки (SQLite)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
-# Проверяем, что параметры базы данных загружены
-if not DATABASES['default']['USER']:
-    raise ValueError("Необходимо установить DB_USER в файле .env")
-if not DATABASES['default']['PASSWORD']:
-    raise ValueError("Необходимо установить DB_PASSWORD в файле .env")
+# Если используется PostgreSQL, проверяем, что параметры базы данных загружены
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    if not DATABASES['default']['USER']:
+        raise ValueError("Необходимо установить DB_USER в переменных окружения")
+    if not DATABASES['default']['PASSWORD']:
+        raise ValueError("Необходимо установить DB_PASSWORD в переменных окружения")
 
-# Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
+# Валидация паролей
 AUTH_USER_MODEL = 'core.User'
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -132,34 +148,27 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
-
+# Интернационализация
 LANGUAGE_CODE = 'ru-ru'  # Установите на 'ru-ru', если ваше приложение на русском
 
 TIME_ZONE = 'UTC'  # Установите на ваш часовой пояс, если необходимо
 
 USE_I18N = True
 
-USE_L10N = True  # Добавьте, если требуется локализованный формат
+USE_L10N = True  # Если вы используете Django версии ниже 4.0
 
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
+# Статические файлы (CSS, JavaScript, изображения)
 STATIC_URL = '/static/'
 
 # Место для сбора статических файлов
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
+# Тип первичного ключа по умолчанию
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Логирование (опционально, но полезно для отладки)
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -174,164 +183,5 @@ LOGGING = {
     },
 }
 
-# # ./eaigaq_project/eaigaq_project/settings.py
-#
-# import os
-# from pathlib import Path
-# from dotenv import load_dotenv
-#
-# # Загружаем переменные окружения из файла .env
-# load_dotenv()
-#
-# # Build paths inside the project like this: BASE_DIR / 'subdir'.
-# BASE_DIR = Path(__file__).resolve().parent.parent
-# LOGIN_REDIRECT_URL = '/api/'
-#
-# # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = os.getenv('SECRET_KEY')
-# print("SECRET_KEY:", SECRET_KEY)
-# # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.getenv('DEBUG', 'False') == 'True'
-#
-# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
-#
-# CORS_ALLOW_CREDENTIALS = True
-#
-# CORS_ALLOWED_ORIGINS = [origin for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if origin]
-# CSRF_TRUSTED_ORIGINS = [origin for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origin]
-#
-# # Если вы используете CORS_ALLOW_ALL_ORIGINS, убедитесь, что он установлен в False
-# CORS_ALLOW_ALL_ORIGINS = False
-#
-# # CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
-# #
-# # CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
-#
-# # Application definition
-#
-# INSTALLED_APPS = [
-#     'django.contrib.admin',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.messages',
-#     'django.contrib.staticfiles',
-#     'core',
-#     'corsheaders',
-#
-#     'rest_framework',
-# ]
-#
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': [
-#         'rest_framework.authentication.SessionAuthentication',
-#     ],
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.IsAuthenticated',
-#     ],
-# }
-#
-# MIDDLEWARE = [
-#     'corsheaders.middleware.CorsMiddleware',
-#     'django.middleware.common.CommonMiddleware',
-#     'django.middleware.security.SecurityMiddleware',
-#     'django.contrib.sessions.middleware.SessionMiddleware',
-#     'django.middleware.common.CommonMiddleware',
-#     'django.middleware.csrf.CsrfViewMiddleware',
-#     'django.contrib.auth.middleware.AuthenticationMiddleware',
-#     'django.contrib.messages.middleware.MessageMiddleware',
-#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-# ]
-#
-# ROOT_URLCONF = 'eaigaq_project.urls'
-#
-# TEMPLATES = [
-#     {
-#         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-#         'DIRS': [],
-#         'APP_DIRS': True,
-#         'OPTIONS': {
-#             'context_processors': [
-#                 'django.template.context_processors.debug',
-#                 'django.template.context_processors.request',
-#                 'django.contrib.auth.context_processors.auth',
-#                 'django.contrib.messages.context_processors.messages',
-#             ],
-#         },
-#     },
-# ]
-#
-# WSGI_APPLICATION = 'eaigaq_project.wsgi.application'
-#
-#
-# # Database
-# # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-#
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DB_NAME', 'eaigaq_db'),
-#         'USER': os.getenv('DB_USER', 'your_db_user'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'your_db_password'),
-#         'HOST': os.getenv('DB_HOST', 'localhost'),
-#         'PORT': os.getenv('DB_PORT', '5432'),
-#     }
-# }
-#
-#
-# # Password validation
-# # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-#
-# AUTH_USER_MODEL = 'core.User'
-#
-# AUTH_PASSWORD_VALIDATORS = [
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-#     },
-# ]
-#
-#
-# # Internationalization
-# # https://docs.djangoproject.com/en/4.2/topics/i18n/
-#
-# LANGUAGE_CODE = 'en-us'
-#
-# TIME_ZONE = 'UTC'
-#
-# USE_I18N = True
-#
-# USE_TZ = True
-#
-#
-# # Static files (CSS, JavaScript, Images)
-# # https://docs.djangoproject.com/en/4.2/howto/static-files/
-#
-# STATIC_URL = 'static/'
-#
-# # Default primary key field type
-# # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-#
-# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-#
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'handlers': {
-#         'console': {
-#             'class': 'logging.StreamHandler',
-#         },
-#     },
-#     'root': {
-#         'handlers': ['console'],
-#         'level': 'INFO',
-#     },
-# }
+# Дополнительные настройки (если необходимо)
+# Например, настройка разрешенных MIME-типов или дополнительных параметров безопасности

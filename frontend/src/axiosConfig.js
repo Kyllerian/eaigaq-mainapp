@@ -3,7 +3,7 @@
 import axios from 'axios';
 import { getCSRFToken } from './csrf';
 
-const baseURL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+const baseURL = process.env.REACT_APP_BACKEND_URL || '/api';
 
 // Для отладки можно вывести базовый URL в консоль
 console.log('Base URL:', baseURL);
